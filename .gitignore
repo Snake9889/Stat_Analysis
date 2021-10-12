@@ -79,9 +79,9 @@ target/
 .ipynb_checkpoints
 
 # R Studio
-.html
-.Rhistory
-.RData
+*.html
+*.Rhistory
+*.RData
 
 # Images
 *.png
@@ -145,10 +145,6 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Txt files
-.txt
-
-# Theory
-R_Theory/
-Python theory/
-.ipynb_checkpoints/
+# Txt and PDF files
+*.txt
+*.pdf
