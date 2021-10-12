@@ -1,0 +1,229 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(parallel)
+library(progress)
+library(iterators)
+
+setwd('c:\\Users\\Slava\\JupyterProjects\\Stat_Analysis\\RLab')
+data <- read.csv("Вячеслав Сергеевич Денисов.csv", colClasses = c("character",rep("double",30) ))
+```
+
+```{r}
+pb <- txtProgressBar(min = 0, max = 20, style = 3, width = 50, char = "*")
+
+for (i in 1:20)
+{
+  gen_row <- c()
+  for (j in 1:nrow(data))
+  {
+    gen_row <- append(gen_row, substr(data[[1]][j],i,i))
+  }
+  Genetics <- data.frame(Position_gen_ = gen_row)
+  colnames(Genetics) <- paste(colnames(Genetics), i)
+  data <- cbind(data, Genetics)
+  setTxtProgressBar(pb, i)
+}
+close(pb)
+i = 0
+j = 0
+```
+
+```{r}
+pb <- txtProgressBar(min = 0, max = 19, style = 3, width = 50, char = "*")
+
+gen_pairs <-matrix(,ncol = 2)
+for (i in 1:19)
+{
+  for (j in (i + 1):20)
+  {
+    gen_pairs <- rbind(gen_pairs, c(i,j) ) 
+  }
+  setTxtProgressBar(pb, i)
+}
+gen_pairs <- gen_pairs[-1,]
+types <- matrix(c(0,0,0,1,1,0,1,1), ncol = 2, byrow = TRUE)
+close(pb)
+i = 0
+j = 0
+```
+
+```{r}
+recombination <- function(i)
+{
+  j = 0
+  k = 0
+  final_recomb <- list()
+  for (j in 1:nrow(types))
+  {
+    columns <- c()
+    data_recomb <- list()
+    for (k in 1:nrow(data))
+    {
+      if (data[[gen_pairs[i,1] + 31]][k] == types[j, 1] && data[[gen_pairs[i,2] + 31]][k] == types[j, 2])
+      {
+        columns <- append(columns, c(1))
+      }
+      else
+      {
+        columns <- append(columns, c(0))
+      }
+    }
+    data_recomb <- cbind(data_recomb, columns)
+    colnames(data_recomb) <- paste("Combin_", gen_pairs[i,1], "_", gen_pairs[i,2], "-", types[j,1], "_", types[j,2], )
+    final_recomb <- cbind(final_recomb, data_recomb)
+  }
+  return(final_recomb) 
+}
+```
+
+
+```{r}
+library(foreach)
+library(doParallel)
+data1 <- list()
+cl <- makeCluster(detectCores(), type = "PSOCK")
+registerDoParallel(cl)
+system.time({data1 <- foreach(i = 1:nrow(gen_pairs), .combine = cbind) %dopar% {
+  recombination(i)
+}})
+stopCluster(cl)
+```
+
+```{r}
+df <- data.frame(data1, stringsAsFactors = TRUE)
+data <- cbind(data, data1)
+```
+
+```{r}
+pb <- txtProgressBar(min = 2, max = 31, style = 3, width = 50, char = "*")
+regress <- list()
+for (i in 2:31)
+{
+  temp2 <- c()
+  N <- colSums(data[i])
+    for (j in 32:ncol(data))
+    {
+      temp <- c()
+      for (k in 1:nrow(data))
+      {
+        if (data[j][[1]][k] == 1)
+        {
+          temp <- append(temp, c(data[i][[1]][k]))
+        }
+      }
+      S <- sum(temp)
+      temp2 <- append(temp2, c(S/N))
+      
+    }
+  regress <- rbind(regress, temp2)
+  setTxtProgressBar(pb, i)
+}
+close(pb)
+```
+```{r}
+df2 <- data.frame(regress, stringsAsFactors = TRUE)
+Names <- colnames(data[32:ncol(data)])
+colnames(df2) <- Names
+rownames(df2) <- colnames(data[2:31])
+```
+
+
+```{r}
+CancerL = list() 
+for (i in 1:nrow(df2))
+{
+    if (substr(rownames(df2)[i],1,6) == 'p_cncr')
+    {
+      CancerL <- rbind(CancerL, c(1))
+    }
+    else
+    {
+      CancerL <- rbind(CancerL, c(0))
+    }
+}
+Cancer <- data.frame( CancerL, stringsAsFactors = TRUE)
+rownames(Cancer) <- rownames(df2)
+Cancer <- cbind(Cancer, df2)
+```
+
+```{r}
+# rsq <- function (x, y) cor(x, y) ^ 2
+# da4 <- array(unlist(Cancer[400]))
+# fit <- glm(formula(df3~da4), family = binomial())
+# summary(fit)$r.squared
+
+library(pscl)
+accur <- list()
+Y <- array(unlist(Cancer[1]))
+pb <- txtProgressBar(min = 2, max = 31, style = 3, width = 50, char = "*")
+for (i in 2:ncol(Cancer))
+{
+  X <- array(unlist(Cancer[i]))
+  fit <- glm(formula(Y~X), family = binomial())
+  accur <- append(accur, pR2(fit)["McFadden"])
+  setTxtProgressBar(pb, i)
+}
+close(pb)
+```
+
+```{r}
+max(unlist(accur))
+#which(unlist(accur)==max(unlist(accur)))
+print(names(Cancer[which(unlist(accur)==max(unlist(accur))) + 1]))
+```
+
+```{r}
+plot( unlist(accur), type="l", main = "Accuracy", xlab = "N", ylab = "R^2")
+```
+
+```{r}
+
+LinR <- function(i)
+{
+  library(pscl)
+  accurat <- list()
+  Y <- array(unlist(Cancer[1]))
+  X <- array(unlist(Cancer[i]))
+  for (j in i:ncol(Cancer))
+  {
+    XX <- array(unlist(Cancer[j]))
+    fit <- glm(formula(Y~X+XX), family = binomial())
+    accurat <- append(accurat, pR2(fit)["McFadden"])
+  }
+  return(accurat)
+}
+```
+
+```{r}
+LR <- list()
+cl <- makeCluster(detectCores(), type = "PSOCK")
+registerDoParallel(cl)
+system.time({LR <- foreach(i = 2:ncol(Cancer), .combine = c) %dopar% {
+  LinR(i)
+}})
+stopCluster(cl)
+
+```
+
+```{r}
+plot( unlist(LR), type="l", main = "Accuracy_mult", xlab = "N", ylab = "R^2")
+```
+

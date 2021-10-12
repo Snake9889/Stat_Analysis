@@ -78,6 +78,11 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# R Studio
+.html
+.Rhistory
+.RData
+
 # Images
 *.png
 
@@ -142,3 +147,8 @@ cython_debug/
 
 # Txt files
 .txt
+
+# Theory
+R_Theory/
+Python theory/
+.ipynb_checkpoints/
